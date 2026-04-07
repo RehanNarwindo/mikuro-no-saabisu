@@ -1,0 +1,50 @@
+{
+  "emmet.excludeLanguages": ["markdown", "typescript"],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "workbench.editor.empty.hint": "hidden",
+  "workbench.iconTheme": "material-icon-theme",
+  "git.confirmSync": false,
+  "hediet.vscode-drawio.resizeImages": null,
+  "editor.wordWrap": "on",
+  "git.openRepositoryInParentFolders": "never",
+  "liveServer.settings.ChromeDebuggingAttachment": false,
+  "editor.minimap.enabled": false,
+  "github.copilot.enable": {
+    "*": false,
+    "plaintext": false,
+    "markdown": false,
+    "scminput": false,
+    "typescript": false
+  },
+  "editor.formatOnPaste": true,
+  "git.ignoreRebaseWarning": true,
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "files.autoSave": "afterDelay",
+  "diffEditor.ignoreTrimWhitespace": true,
+  "gitlens.ai.model": "vscode",
+  "gitlens.ai.vscode.model": "copilot:gpt-4.1",
+  "terminal.integrated.suggest.inlineSuggestion": "off",
+  "workbench.colorTheme": "Atom One Dark",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript", "typescript"],
+  "eslint.run": "onType",
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "sonarlint.analyzerProperties": {
+    "sonar.typescript.tsconfigPath": "tsconfig.json"
+  },
+  "dependi.autoInstall": true,
+  "dependi.packageManager": "npm",
+  "sonarlint.connectedMode.project": {
+    "connectionId": "sonarqube",
+    "projectKey": "nest-project"
+  }
+}

@@ -1,4 +1,3 @@
-cat > README.md << 'EOF'
 # mikuro-no-saabisu
 
 A microservices project built with Go.
@@ -16,12 +15,14 @@ A microservices project built with Go.
 ## Getting Started
 
 ### Clone the repository
+
 ```bash
 git clone https://github.com/RehanNarwindo/mikuro-no-saabisu.git
 cd mikuro-no-saabisu
 ```
 
 ### Run a service
+
 ```bash
 cd auth-service
 go run main.go

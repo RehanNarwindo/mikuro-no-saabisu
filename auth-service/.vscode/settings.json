@@ -46,5 +46,16 @@
   "sonarlint.connectedMode.project": {
     "connectionId": "sonarqube",
     "projectKey": "nest-project"
-  }
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint",
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true
+  },
+  "markdownlint.run": "onSave",
+  "markdownlint.ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**"
+  ]
 }

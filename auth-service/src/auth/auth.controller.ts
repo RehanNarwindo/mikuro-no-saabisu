@@ -16,17 +16,6 @@ import { AuthService } from './auth.service';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('profile')
-  @HttpCode(HttpStatus.OK)
-  async getProfile() {
-    return {
-      success: true,
-      message: 'Profile endpoint',
-      data: {
-        note: 'This endpoint requires authentication',
-      },
-    };
-  }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -51,7 +40,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     try {
-      console.log("SECRET AUTH:", process.env.JWT_SECRET);
       const result = await this.authService.login(loginDto);
 
       return {

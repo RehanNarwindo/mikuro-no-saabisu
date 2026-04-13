@@ -10,7 +10,7 @@ import { DatabaseModule } from 'src/database/database.module';
     CacheModule.register({
       ttl: 300000,
       max: 100,
-      isGlobal: true,
+      name: 'auth_cache',
     }),
     DatabaseModule,
   ],

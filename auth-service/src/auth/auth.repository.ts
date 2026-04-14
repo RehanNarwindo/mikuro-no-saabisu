@@ -3,7 +3,6 @@ import { Pool } from 'pg';
 import { CreateUserPayload } from './interfaces/user.interface';
 import { AuthQueries } from './sql/auth.queries';
 import { uuidv7 } from 'uuidv7';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { CACHE_KEYS } from 'src/constant/cache-keys.constants';
 
@@ -11,7 +10,7 @@ import { CACHE_KEYS } from 'src/constant/cache-keys.constants';
 export class AuthRepository {
   constructor(
     @Inject('PG_POOL') private readonly db: Pool,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    @Inject('CACHE_MANAGER_AUTH_CACHE') private readonly cacheManager: Cache,
   ) {}
   async createUser(user: CreateUserPayload) {
     const id = uuidv7();
@@ -41,8 +40,18 @@ export class AuthRepository {
 
     const result = await this.db.query(AuthQueries.findByEmail, [email]);
     const user = result.rows[0];
+
     if (user) {
-      await this.cacheManager.set(cacheKey, user);
+      const formattedUser = {
+        id: user.id,
+        email: user.email,
+        password: user.password,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        created_at: user.created_at,
+      };
+      await this.cacheManager.set(cacheKey, formattedUser);
+      return formattedUser;
     }
     return user;
   }
@@ -59,19 +68,22 @@ export class AuthRepository {
     const user = result.rows[0];
 
     if (user) {
-      await this.cacheManager.set(cacheKey, user);
+      const formattedUser = {
+        id: user.id,
+        email: user.email,
+        password: user.password,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        created_at: user.created_at,
+      };
+      await this.cacheManager.set(cacheKey, formattedUser);
+      return formattedUser;
     }
-
     return user;
   }
 
   async saveRefreshToken(token: string, userId: string) {
-    const query = `
-      INSERT INTO refresh_tokens (token, user_id, expires_at)
-      VALUES ($1, $2, NOW() + INTERVAL '7 days')
-    `;
-    await this.db.query(query, [token, userId]);
-
+    await this.db.query(AuthQueries.saveRefreshToken, [token, userId]);
     const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
     await this.cacheManager.set(cacheKey, { token, userId }, 604800);
   }
@@ -84,12 +96,7 @@ export class AuthRepository {
       return cached;
     }
 
-    const query = `
-      SELECT * FROM refresh_tokens
-      WHERE token = $1
-      AND expires_at > NOW()
-    `;
-    const result = await this.db.query(query, [token]);
+    const result = await this.db.query(AuthQueries.findRefreshToken, [token]);
     const refreshToken = result.rows[0];
     if (refreshToken) {
       await this.cacheManager.set(cacheKey, refreshToken, 604800);
@@ -98,8 +105,7 @@ export class AuthRepository {
   }
 
   async deleteRefreshToken(token: string) {
-    const query = `DELETE FROM refresh_tokens WHERE token = $1`;
-    await this.db.query(query, [token]);
+    await this.db.query(AuthQueries.deleteRefreshToken, [token]);
     const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
     await this.cacheManager.del(cacheKey);
   }

@@ -9,7 +9,7 @@ import {
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
@@ -18,7 +18,7 @@ export class RegisterDto {
     message:
       'Password must contain uppercase, lowercase, and number or special char',
   })
-  password: string;
+  password!: string;
 
   @IsOptional()
   @IsString()

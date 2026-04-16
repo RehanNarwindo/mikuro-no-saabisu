@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -15,26 +16,41 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const existing = await this.authRepository.findByEmail(registerDto.email);
-
     if (existing) {
       throw new ConflictException('Email already registered');
     }
 
-    const hashedPassword = await hashPass(registerDto.password);
+    try {
+      const hashedPassword = await hashPass(registerDto.password);
 
-    const user = await this.authRepository.createUser({
-      email: registerDto.email,
-      password: hashedPassword,
-      firstName: registerDto.firstName,
-      lastName: registerDto.lastName,
-    });
+      const user = await this.authRepository.createUser({
+        email: registerDto.email,
+        password: hashedPassword,
+        firstName: registerDto.firstName,
+        lastName: registerDto.lastName,
+      });
 
-    const tokens = generateAccessToken({
-      sub: user.id,
-      email: user.email,
-    });
+      if (!user) {
+        throw new InternalServerErrorException('Failed to create user');
+      }
 
-    return { user, tokens };
+      const tokens = generateAccessToken({
+        sub: user.id,
+        email: user.email,
+      });
+
+      return { user, tokens };
+    } catch (error) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Registration failed. Please try again.',
+      );
+    }
   }
 
   async login(loginDto: LoginDto) {
@@ -67,6 +83,10 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    return this.authRepository.findById(userId);
+    const user = await this.authRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return user;
   }
 }

@@ -11,6 +11,6 @@ export interface User {
 export interface CreateUserPayload {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
 }

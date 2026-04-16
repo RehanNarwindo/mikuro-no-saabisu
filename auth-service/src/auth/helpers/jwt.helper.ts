@@ -15,17 +15,3 @@ export function generateAccessToken(payload: object): string {
 
   return jwt.sign(payload, JWT_SECRET, options);
 }
-
-export function verifyAccessToken(token: string): jwt.JwtPayload | null {
-  const JWT_SECRET = process.env.JWT_SECRET;
-
-  if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET is not defined');
-  }
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
-  } catch {
-    return null;
-  }
-}

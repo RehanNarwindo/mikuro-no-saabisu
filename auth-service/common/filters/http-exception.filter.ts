@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 
 @Catch()
-export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
+export class GlobalExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionsFilter.name);
 
   catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -38,7 +38,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `[${request.method}] ${request.url} - Status: ${status}`,
       exception.stack || exception.message,
     );
-
     response.status(status).json({
       statusCode: status,
       message: message,

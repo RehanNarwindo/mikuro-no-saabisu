@@ -84,33 +84,26 @@ export class AuthRepository {
 
   async saveRefreshToken(token: string, userId: string) {
     await this.db.query(AuthQueries.saveRefreshToken, [token, userId]);
+
     const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
     await this.cacheManager.set(cacheKey, { token, userId }, 604800);
   }
 
-  async findRefreshToken(token: string) {
-    const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
-    const cached = await this.cacheManager.get(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
-    const result = await this.db.query(AuthQueries.findRefreshToken, [token]);
-    const refreshToken = result.rows[0];
-    if (refreshToken) {
-      await this.cacheManager.set(cacheKey, refreshToken, 604800);
-    }
-    return refreshToken;
-  }
-
   async deleteRefreshToken(token: string) {
     await this.db.query(AuthQueries.deleteRefreshToken, [token]);
+
     const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
     await this.cacheManager.del(cacheKey);
   }
 
-  private async clearUserCache(id: string, email: string) {
+  async findRefreshToken(token: string) {
+    const result = await this.db.query(AuthQueries.findRefreshToken, [token]);
+    const refreshToken = result.rows[0];
+
+    return refreshToken;
+  }
+
+  async clearUserCache(id: string, email: string) {
     await this.cacheManager.del(CACHE_KEYS.USER_ID(id));
     await this.cacheManager.del(CACHE_KEYS.USER_EMAIL(email));
   }

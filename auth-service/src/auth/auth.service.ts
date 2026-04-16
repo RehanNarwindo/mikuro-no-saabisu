@@ -9,6 +9,7 @@ import { LoginDto } from './dto/login.dto';
 import { hashPass, comparePass } from './helpers/bcrypt.helper';
 import { generateAccessToken } from './helpers/jwt.helper';
 import { AuthRepository } from './auth.repository';
+import { uuidv7 } from 'uuidv7';
 
 @Injectable()
 export class AuthService {
@@ -38,8 +39,14 @@ export class AuthService {
         sub: user.id,
         email: user.email,
       });
+      const refreshToken = uuidv7();
+      await this.authRepository.saveRefreshToken(refreshToken, user.id);
 
-      return { user, tokens };
+      return {
+        user,
+        tokens,
+        refreshToken,
+      };
     } catch (error) {
       if (
         error instanceof ConflictException ||
@@ -71,6 +78,9 @@ export class AuthService {
       email: user.email,
     });
 
+    const refreshToken = uuidv7();
+    await this.authRepository.saveRefreshToken(refreshToken, user.id);
+
     return {
       user: {
         id: user.id,
@@ -79,7 +89,38 @@ export class AuthService {
         lastName: user.last_name,
       },
       tokens,
+      refreshToken,
     };
+  }
+
+  async refreshToken(oldRefreshToken: string) {
+    const refreshTokenData =
+      await this.authRepository.findRefreshToken(oldRefreshToken);
+
+    if (!refreshTokenData) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const user = await this.authRepository.findById(refreshTokenData.user_id);
+    const newAccessToken = generateAccessToken({
+      sub: user.id,
+      email: user.email,
+    });
+    await this.authRepository.clearUserCache(user.id, user.email);
+
+    const newRefreshToken = uuidv7();
+
+    await this.authRepository.saveRefreshToken(newRefreshToken, user.id);
+
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  async logout(refreshToken: string) {
+    await this.authRepository.deleteRefreshToken(refreshToken);
+    return { success: true, message: 'Logged out successfully' };
   }
 
   async me(userId: string) {

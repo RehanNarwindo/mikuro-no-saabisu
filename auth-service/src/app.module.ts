@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import configuration from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ]),
     AuthModule,
     DatabaseModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

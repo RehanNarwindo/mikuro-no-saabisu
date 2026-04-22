@@ -5,12 +5,14 @@ import { AuthQueries } from './sql/auth.queries';
 import { uuidv7 } from 'uuidv7';
 import { Cache } from 'cache-manager';
 import { CACHE_KEYS } from 'src/constant/cache-keys.constants';
+import { RedisClientType } from 'redis';
 
 @Injectable()
 export class AuthRepository {
   constructor(
     @Inject('PG_POOL') private readonly db: Pool,
     @Inject('CACHE_MANAGER_AUTH_CACHE') private readonly cacheManager: Cache,
+    @Inject('REDIS_CLIENT') private readonly redisClient: RedisClientType,
   ) {}
   async createUser(user: CreateUserPayload) {
     const id = uuidv7();
@@ -33,7 +35,6 @@ export class AuthRepository {
   async findByEmail(email: string) {
     const cacheKey = CACHE_KEYS.USER_EMAIL(email);
     const cached = await this.cacheManager.get(cacheKey);
-
     if (cached) {
       return cached;
     }
@@ -82,25 +83,30 @@ export class AuthRepository {
     return user;
   }
 
-  async saveRefreshToken(token: string, userId: string) {
-    await this.db.query(AuthQueries.saveRefreshToken, [token, userId]);
-
-    const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
-    await this.cacheManager.set(cacheKey, { token, userId }, 604800);
+  private getRefreshTokenKey(token: string): string {
+    return `auth:refresh_token:${token}`;
   }
 
-  async deleteRefreshToken(token: string) {
-    await this.db.query(AuthQueries.deleteRefreshToken, [token]);
-
-    const cacheKey = CACHE_KEYS.REFRESH_TOKEN(token);
-    await this.cacheManager.del(cacheKey);
+  async saveRefreshToken(token: string, userId: string) {
+    const key = this.getRefreshTokenKey(token);
+    await this.redisClient.setEx(key, 604800, userId);
   }
 
   async findRefreshToken(token: string) {
-    const result = await this.db.query(AuthQueries.findRefreshToken, [token]);
-    const refreshToken = result.rows[0];
+    const key = this.getRefreshTokenKey(token);
+    const userId = await this.redisClient.get(key);
 
-    return refreshToken;
+
+    if (!userId) {
+      return null;
+    }
+
+    return { token, user_id: userId };
+  }
+
+  async deleteRefreshToken(token: string) {
+    const key = this.getRefreshTokenKey(token);
+    await this.redisClient.del(key);
   }
 
   async clearUserCache(id: string, email: string) {

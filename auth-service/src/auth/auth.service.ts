@@ -102,14 +102,19 @@ export class AuthService {
     }
 
     const user = await this.authRepository.findById(refreshTokenData.user_id);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.authRepository.deleteRefreshToken(oldRefreshToken);
+
     const newAccessToken = generateAccessToken({
       sub: user.id,
       email: user.email,
     });
-    await this.authRepository.clearUserCache(user.id, user.email);
 
     const newRefreshToken = uuidv7();
-
     await this.authRepository.saveRefreshToken(newRefreshToken, user.id);
 
     return {

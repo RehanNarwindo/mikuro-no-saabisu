@@ -5,6 +5,7 @@ export const RedisProvider = {
   useFactory: async () => {
     const client = createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379',
+      database: 1,
     });
 
     await client.connect();

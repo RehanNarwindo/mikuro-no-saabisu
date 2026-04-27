@@ -23,6 +23,7 @@ export class AuthRepository {
       user.password,
       user.firstName,
       user.lastName,
+      user.role || 'user',
     ];
     const result = await this.db.query(AuthQueries.create, values);
 
@@ -49,6 +50,7 @@ export class AuthRepository {
         password: user.password,
         first_name: user.first_name,
         last_name: user.last_name,
+        role: user.role,
         created_at: user.created_at,
       };
       await this.cacheManager.set(cacheKey, formattedUser);
@@ -75,6 +77,7 @@ export class AuthRepository {
         password: user.password,
         first_name: user.first_name,
         last_name: user.last_name,
+        role: user.role,
         created_at: user.created_at,
       };
       await this.cacheManager.set(cacheKey, formattedUser);
@@ -95,7 +98,6 @@ export class AuthRepository {
   async findRefreshToken(token: string) {
     const key = this.getRefreshTokenKey(token);
     const userId = await this.redisClient.get(key);
-
 
     if (!userId) {
       return null;

@@ -38,6 +38,7 @@ export class AuthService {
       const tokens = generateAccessToken({
         sub: user.id,
         email: user.email,
+        role: user.role,
       });
       const refreshToken = uuidv7();
       await this.authRepository.saveRefreshToken(refreshToken, user.id);
@@ -72,12 +73,11 @@ export class AuthService {
     if (!isValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
     const tokens = generateAccessToken({
       sub: user.id,
       email: user.email,
+      role: user.role,
     });
-
     const refreshToken = uuidv7();
     await this.authRepository.saveRefreshToken(refreshToken, user.id);
 
@@ -87,6 +87,7 @@ export class AuthService {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
+        role: user.role,
       },
       tokens,
       refreshToken,
@@ -112,6 +113,7 @@ export class AuthService {
     const newAccessToken = generateAccessToken({
       sub: user.id,
       email: user.email,
+      role: user.role,
     });
 
     const newRefreshToken = uuidv7();

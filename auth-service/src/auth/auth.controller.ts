@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   HttpCode,
   HttpStatus,
   Post,
@@ -10,6 +11,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { LogoutDto } from './dto/logout.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -37,6 +40,30 @@ export class AuthController {
     return {
       success: true,
       message: 'Login successful',
+      data: result,
+    };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    const result = await this.authService.refreshToken(
+      refreshTokenDto.refreshToken,
+    );
+    return {
+      success: true,
+      message: 'Token refreshed successfully',
+      data: result,
+    };
+  }
+
+  @Delete('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() logoutDto: LogoutDto) {
+    const result = await this.authService.logout(logoutDto.refreshToken);
+    return {
+      success: true,
+      message: 'Logged out successfully',
       data: result,
     };
   }

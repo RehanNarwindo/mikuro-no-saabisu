@@ -1,4 +1,5 @@
 package main
+
 import (
 	"user-service/src/config/database"
 	"user-service/src/config/jwt"
@@ -20,7 +21,10 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/public", handler.PublicHandler)
-	r.GET("/profile", authMiddleware, handler.ProfileHandler)
-
+	r.GET("/users/all", authMiddleware, handler.GetAllUser) 
+	r.GET("/users/profile", authMiddleware, handler.GetUserProfileHandler)  
+	r.GET("/users/profile/:id", authMiddleware, handler.GetUserByIdHandler)
+	r.PUT("/users/:id", authMiddleware, handler.UpdateUserHandler)
+	r.DELETE("/users/:id", authMiddleware, handler.DeleteUserHandler)
 	r.Run(":3001")
 }

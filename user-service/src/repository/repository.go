@@ -9,6 +9,15 @@ import (
 	"user-service/src/model"
 )
 
+var allowedSortBy = map[string]bool{
+    "created_at": true, "email": true, "first_name": true,
+}
+
+var allowedSortDir = map[string]bool{
+    "ASC": true, "DESC": true,
+}
+
+
 func GetUserById(id string) (*model.User, error) {
 	var user model.User
 
@@ -52,10 +61,13 @@ func GetUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func GetAllUsersWithFilters(search, role string, limit, offset int, sortBy, sortDir string) ([]model.User, int, error) {
+func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortBy, sortDir string) ([]model.User, int, error) {
 	baseQuery := `FROM users WHERE 1=1`
 	args := []interface{}{}
 	argCounter := 1
+
+	if !allowedSortBy[sortBy]   { sortBy = "created_at" }
+    if !allowedSortDir[sortDir] { sortDir = "DESC" }
 
 	if search != "" {
 		baseQuery += fmt.Sprintf(` AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)`, 
@@ -128,7 +140,7 @@ func GetAllUsersWithFilters(search, role string, limit, offset int, sortBy, sort
 	return users, total, nil
 }
 
-func GetAllUsers() ([]model.User, error) {
+func GetAllUserHandlers() ([]model.User, error) {
 	rows, err := database.DB.Query(`SELECT id, email, first_name, last_name, role FROM users`)
 	if err != nil {
 		return nil, err

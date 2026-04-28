@@ -21,7 +21,7 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/public", handler.PublicHandler)
-	r.GET("/users/all", authMiddleware, handler.GetAllUser) 
+	r.GET("/users/all", authMiddleware, handler.GetAllUserHandler) 
 	r.GET("/users/profile", authMiddleware, handler.GetUserProfileHandler)  
 	r.GET("/users/profile/:id", authMiddleware, handler.GetUserByIdHandler)
 	r.PUT("/users/:id", authMiddleware, handler.UpdateUserHandler)

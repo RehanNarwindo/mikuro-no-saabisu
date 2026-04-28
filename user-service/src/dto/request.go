@@ -4,7 +4,7 @@ type GetUserByIdRequest struct {
 	ID string `json:"id" uri:"id" binding:"required,uuid"`
 }
 
-type GetAllUsersRequest struct {
+type GetAllUserHandlersRequest struct {
 	Search  string `json:"search" form:"search"`     
 	Role    string `json:"role" form:"role"`        
 	Limit   int    `json:"limit" form:"limit"`       

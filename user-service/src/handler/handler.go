@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"user-service/src/dto"
 	"user-service/src/service"
 
@@ -86,15 +87,40 @@ func GetAllUserHandler(c *gin.Context) {
 	req.Role = c.Query("role")
 	
 	if limit := c.Query("limit"); limit != "" {
-		req.Limit, _ = strconv.Atoi(limit)
+    	val, err := strconv.Atoi(limit)
+			if err != nil || val < 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid limit, must be a positive number"})
+				return
+			}
+    	req.Limit = val
 	}
+
 	if offset := c.Query("offset"); offset != "" {
 		req.Offset, _ = strconv.Atoi(offset)
 	}
 	
-	req.SortBy = c.Query("sort_by")
-	req.SortDir = c.Query("sort_dir")
+	allowedSortBy := map[string]bool{
+		"created_at": true,
+		"email":      true,
+		"first_name": true,
+	}
 
+	if sortBy := c.Query("sort_by"); sortBy != "" {
+		if !allowedSortBy[sortBy] {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_by field"})
+			return
+		}
+		req.SortBy = sortBy
+	}
+		if sortDir := c.Query("sort_dir"); sortDir != "" {
+			sortDirUpper := strings.ToUpper(sortDir)
+			if sortDirUpper == "ASC" || sortDirUpper == "DESC" {
+				req.SortDir = sortDirUpper
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_dir, must be ASC or DESC"})
+				return
+			}
+		}
 	response, err := service.GetAllUsers(claims, req)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
@@ -116,10 +142,6 @@ func UpdateUserHandler(c *gin.Context) {
 	}
 
 	targetUserID := c.Param("id")
-	if targetUserID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "User ID is required"})
-		return
-	}
 
 	var updateData dto.UpdateUserRequest
 	if err := c.ShouldBindJSON(&updateData); err != nil {
@@ -149,12 +171,7 @@ func DeleteUserHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": err.Error()})
 		return
 	}
-
 	targetUserID := c.Param("id")
-	if targetUserID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "User ID is required"})
-		return
-	}
 
 	err = service.DeleteUser(claims, targetUserID)
 	if err != nil {

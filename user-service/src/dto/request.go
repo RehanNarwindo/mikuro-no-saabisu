@@ -14,14 +14,8 @@ type GetAllUserHandlersRequest struct {
 }
 
 
-type CreateUserRequest struct {
-	Email     string `json:"email"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-}
-
 type UpdateUserRequest struct {
-	Email     string `json:"email" binding:"omitempty,email"`
-	FirstName string `json:"first_name" binding:"omitempty"`
-	LastName  string `json:"last_name" binding:"omitempty"`
+    Email     string `json:"email" binding:"omitempty,email,max=255"`
+    FirstName string `json:"first_name" binding:"omitempty,min=1,max=50"`
+    LastName  string `json:"last_name" binding:"omitempty,min=1,max=50"`
 }

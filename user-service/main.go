@@ -1,9 +1,10 @@
 package main
 
 import (
+	"log"
 	"user-service/src/config/database"
 	"user-service/src/config/jwt"
-	"user-service/src/handler"
+	"user-service/src/handler/user"
 	"user-service/src/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -21,10 +22,14 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/public", handler.PublicHandler)
-	r.GET("/users/all", authMiddleware, handler.GetAllUserHandler) 
-	r.GET("/users/profile", authMiddleware, handler.GetUserProfileHandler)  
+	r.GET("/users/all", authMiddleware, handler.GetAllUserHandler)
+	r.GET("/users/profile", authMiddleware, handler.GetUserProfileHandler)
 	r.GET("/users/profile/:id", authMiddleware, handler.GetUserByIdHandler)
 	r.PUT("/users/:id", authMiddleware, handler.UpdateUserHandler)
 	r.DELETE("/users/:id", authMiddleware, handler.DeleteUserHandler)
-	r.Run(":3001")
+
+	if err := r.Run(":3001"); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+
 }

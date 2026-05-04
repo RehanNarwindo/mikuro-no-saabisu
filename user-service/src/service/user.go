@@ -56,7 +56,7 @@ func GetUserByID(claims jwt.MapClaims, targetUserID string) (dto.UserResponse, e
 
 func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUserHandlersRequest) (*dto.GetAllUsersResponse, error) {
 	tokenRole, _ := claims["role"].(string)
-	if tokenRole != "admin"  {
+	if tokenRole != "admin" {
 		return nil, errors.New("permission denied: admin access required")
 	}
 
@@ -113,7 +113,7 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUserHandlersRequest) (*dto.
 func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.UpdateUserRequest) (dto.UserResponse, error) {
 	tokenUserID, _ := claims["sub"].(string)
 	tokenRole, _ := claims["role"].(string)
-	
+
 	if tokenRole != "admin" && tokenUserID != targetUserID {
 		return dto.UserResponse{}, errors.New("permission denied: you can only update your own data")
 	}

@@ -15,14 +15,12 @@ import (
 
 var validate = validator.New()
 
-
 func PublicHandler(c *gin.Context) {
 	message := service.GetPublicMessage()
 	c.JSON(http.StatusOK, gin.H{
 		"message": message,
 	})
 }
-
 
 func GetUserProfileHandler(c *gin.Context) {
 	claims, err := getClaimsFromContext(c)
@@ -38,7 +36,7 @@ func GetUserProfileHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": true,
+		"status":  true,
 		"message": "Success",
 		"data":    user,
 	})
@@ -53,7 +51,7 @@ func GetUserByIdHandler(c *gin.Context) {
 
 	var req dto.GetUserByIdRequest
 	req.ID = c.Param("id")
-	
+
 	if err := validate.Var(req.ID, "required,uuid"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user ID format"})
 		return
@@ -72,8 +70,6 @@ func GetUserByIdHandler(c *gin.Context) {
 	})
 }
 
-
-
 func GetAllUserHandler(c *gin.Context) {
 	claims, err := getClaimsFromContext(c)
 	if err != nil {
@@ -82,23 +78,23 @@ func GetAllUserHandler(c *gin.Context) {
 	}
 
 	var req dto.GetAllUserHandlersRequest
-	
+
 	req.Search = c.Query("search")
 	req.Role = c.Query("role")
-	
+
 	if limit := c.Query("limit"); limit != "" {
-    	val, err := strconv.Atoi(limit)
-			if err != nil || val < 0 {
-				c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid limit, must be a positive number"})
-				return
-			}
-    	req.Limit = val
+		val, err := strconv.Atoi(limit)
+		if err != nil || val < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid limit, must be a positive number"})
+			return
+		}
+		req.Limit = val
 	}
 
 	if offset := c.Query("offset"); offset != "" {
 		req.Offset, _ = strconv.Atoi(offset)
 	}
-	
+
 	allowedSortBy := map[string]bool{
 		"created_at": true,
 		"email":      true,
@@ -112,15 +108,15 @@ func GetAllUserHandler(c *gin.Context) {
 		}
 		req.SortBy = sortBy
 	}
-		if sortDir := c.Query("sort_dir"); sortDir != "" {
-			sortDirUpper := strings.ToUpper(sortDir)
-			if sortDirUpper == "ASC" || sortDirUpper == "DESC" {
-				req.SortDir = sortDirUpper
-			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_dir, must be ASC or DESC"})
-				return
-			}
+	if sortDir := c.Query("sort_dir"); sortDir != "" {
+		sortDirUpper := strings.ToUpper(sortDir)
+		if sortDirUpper == "ASC" || sortDirUpper == "DESC" {
+			req.SortDir = sortDirUpper
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_dir, must be ASC or DESC"})
+			return
 		}
+	}
 	response, err := service.GetAllUsers(claims, req)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})

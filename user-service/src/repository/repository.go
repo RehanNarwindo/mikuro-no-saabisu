@@ -10,13 +10,12 @@ import (
 )
 
 var allowedSortBy = map[string]bool{
-    "created_at": true, "email": true, "first_name": true,
+	"created_at": true, "email": true, "first_name": true,
 }
 
 var allowedSortDir = map[string]bool{
-    "ASC": true, "DESC": true,
+	"ASC": true, "DESC": true,
 }
-
 
 func GetUserById(id string) (*model.User, error) {
 	var user model.User
@@ -66,11 +65,15 @@ func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortB
 	args := []interface{}{}
 	argCounter := 1
 
-	if !allowedSortBy[sortBy]   { sortBy = "created_at" }
-    if !allowedSortDir[sortDir] { sortDir = "DESC" }
+	if !allowedSortBy[sortBy] {
+		sortBy = "created_at"
+	}
+	if !allowedSortDir[sortDir] {
+		sortDir = "DESC"
+	}
 
 	if search != "" {
-		baseQuery += fmt.Sprintf(` AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)`, 
+		baseQuery += fmt.Sprintf(` AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)`,
 			argCounter, argCounter, argCounter)
 		args = append(args, "%"+search+"%")
 		argCounter++
@@ -119,7 +122,11 @@ func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortB
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var users []model.User
 	for rows.Next() {
@@ -145,8 +152,11 @@ func GetAllUserHandlers() ([]model.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 	var users []model.User
 
 	for rows.Next() {
@@ -169,7 +179,6 @@ func GetAllUserHandlers() ([]model.User, error) {
 	return users, nil
 }
 
-
 func UpdateUserByID(id string, updates map[string]interface{}) error {
 	query := `UPDATE users SET 
 		email = COALESCE($1, email),
@@ -177,34 +186,33 @@ func UpdateUserByID(id string, updates map[string]interface{}) error {
 		last_name = COALESCE($3, last_name),
 		updated_at = NOW()
 	WHERE id = $4`
-	
-	_, err := database.DB.Exec(query, 
-		updates["email"], 
-		updates["first_name"], 
-		updates["last_name"], 
+
+	_, err := database.DB.Exec(query,
+		updates["email"],
+		updates["first_name"],
+		updates["last_name"],
 		id,
 	)
 
 	return err
 }
 
-
 func DeleteUserByID(id string) error {
 	query := `DELETE FROM users WHERE id = $1`
-	
+
 	result, err := database.DB.Exec(query, id)
 	if err != nil {
 		return err
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	
+
 	if rowsAffected == 0 {
 		return errors.New("user not found")
 	}
-	
+
 	return nil
 }

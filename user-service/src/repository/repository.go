@@ -157,6 +157,8 @@ func GetAllUserHandlers() ([]model.User, error) {
 			fmt.Printf("Warning: failed to close rows: %v\n", err)
 		}
 	}()
+
+	
 	var users []model.User
 
 	for rows.Next() {

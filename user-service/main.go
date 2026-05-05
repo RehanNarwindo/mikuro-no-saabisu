@@ -2,9 +2,10 @@ package main
 
 import (
 	"log"
+
 	"user-service/src/config/database"
 	"user-service/src/config/jwt"
-	"user-service/src/handler/user"
+	handler "user-service/src/handler/user"
 	"user-service/src/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -31,5 +32,4 @@ func main() {
 	if err := r.Run(":3001"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
-
 }

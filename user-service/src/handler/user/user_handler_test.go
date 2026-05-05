@@ -21,7 +21,7 @@ func TestPublicHandler(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Contains(t, response, "message")
@@ -78,13 +78,12 @@ func TestGetUserByIdHandler_InvalidUUID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
-
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
 		t.Errorf("Failed to unmarshal response: %v", err)
 	}
-	assert.Contains(t, response["message"], "Invalid user ID")
+	assert.Contains(t, response["message"], "Invalid user ID format")
 }
 
 func TestGetUserByIdHandler_ValidUUID(t *testing.T) {
@@ -117,7 +116,8 @@ func TestGetAllUserHandler_InvalidLimit(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	c.Request = httptest.NewRequest("GET", "/users?limit=-1", nil)
+	ctx := t.Context()
+	c.Request = httptest.NewRequestWithContext(ctx, "GET", "/users?limit=-1", nil)
 
 	claims := jwt.MapClaims{
 		"user_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -136,7 +136,8 @@ func TestGetAllUserHandler_InvalidSortDir(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	c.Request = httptest.NewRequest("GET", "/users?sort_dir=INVALID", nil)
+	ctx := t.Context()
+	c.Request = httptest.NewRequestWithContext(ctx, "GET", "/users?sort_dir=INVALID", nil)
 
 	claims := jwt.MapClaims{
 		"user_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -155,7 +156,8 @@ func TestGetAllUserHandler_InvalidSortBy(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	c.Request = httptest.NewRequest("GET", "/users?sort_by=invalid_field", nil)
+	ctx := t.Context()
+	c.Request = httptest.NewRequestWithContext(ctx, "GET", "/users?sort_by=invalid_field", nil)
 
 	claims := jwt.MapClaims{
 		"user_id": "123e4567-e89b-12d3-a456-426614174000",

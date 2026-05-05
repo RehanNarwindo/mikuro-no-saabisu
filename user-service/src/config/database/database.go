@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -35,7 +36,7 @@ func DatabaseConfig() {
 		log.Fatal("Gagal koneksi DB:", err)
 	}
 
-	err = db.Ping()
+	err = db.PingContext(context.Background())
 	if err != nil {
 		log.Fatal("DB tidak bisa diakses:", err)
 	}

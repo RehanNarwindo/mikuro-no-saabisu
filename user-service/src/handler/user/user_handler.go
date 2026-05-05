@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+
 	"user-service/src/dto"
 	"user-service/src/service"
 
@@ -52,7 +53,7 @@ func GetUserByIdHandler(c *gin.Context) {
 	var req dto.GetUserByIdRequest
 	req.ID = c.Param("id")
 
-	if err := validate.Var(req.ID, "required,uuid"); err != nil {
+	if validationErr := validate.Var(req.ID, "required,uuid"); validationErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user ID format"})
 		return
 	}
@@ -77,46 +78,11 @@ func GetAllUserHandler(c *gin.Context) {
 		return
 	}
 
-	var req dto.GetAllUserHandlersRequest
-
-	req.Search = c.Query("search")
-	req.Role = c.Query("role")
-
-	if limit := c.Query("limit"); limit != "" {
-		val, err := strconv.Atoi(limit)
-		if err != nil || val < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid limit, must be a positive number"})
-			return
-		}
-		req.Limit = val
+	req := parseUserRequest(c)
+	if req == nil {
+		return
 	}
 
-	if offset := c.Query("offset"); offset != "" {
-		req.Offset, _ = strconv.Atoi(offset)
-	}
-
-	allowedSortBy := map[string]bool{
-		"created_at": true,
-		"email":      true,
-		"first_name": true,
-	}
-
-	if sortBy := c.Query("sort_by"); sortBy != "" {
-		if !allowedSortBy[sortBy] {
-			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_by field"})
-			return
-		}
-		req.SortBy = sortBy
-	}
-	if sortDir := c.Query("sort_dir"); sortDir != "" {
-		sortDirUpper := strings.ToUpper(sortDir)
-		if sortDirUpper == "ASC" || sortDirUpper == "DESC" {
-			req.SortDir = sortDirUpper
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_dir, must be ASC or DESC"})
-			return
-		}
-	}
 	response, err := service.GetAllUsers(claims, req)
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"message": err.Error()})
@@ -130,6 +96,57 @@ func GetAllUserHandler(c *gin.Context) {
 	})
 }
 
+func parseUserRequest(c *gin.Context) *dto.GetAllUserHandlersRequest {
+	req := &dto.GetAllUserHandlersRequest{
+		Search:  c.Query("search"),
+		Role:    c.Query("role"),
+		Limit:   10,
+		Offset:  0,
+		SortBy:  "created_at",
+		SortDir: "DESC",
+	}
+
+	if limit := c.Query("limit"); limit != "" {
+		val, err := strconv.Atoi(limit)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid limit"})
+			return nil
+		}
+		req.Limit = val
+	}
+
+	if offset := c.Query("offset"); offset != "" {
+		val, err := strconv.Atoi(offset)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid offset"})
+			return nil
+		}
+		req.Offset = val
+	}
+
+	allowedSortBy := map[string]bool{
+		"created_at": true, "email": true, "first_name": true,
+	}
+	if sortBy := c.Query("sort_by"); sortBy != "" {
+		if !allowedSortBy[sortBy] {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_by"})
+			return nil
+		}
+		req.SortBy = sortBy
+	}
+
+	if sortDir := c.Query("sort_dir"); sortDir != "" {
+		sortDirUpper := strings.ToUpper(sortDir)
+		if sortDirUpper != "ASC" && sortDirUpper != "DESC" {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid sort_dir"})
+			return nil
+		}
+		req.SortDir = sortDirUpper
+	}
+
+	return req
+}
+
 func UpdateUserHandler(c *gin.Context) {
 	claims, err := getClaimsFromContext(c)
 	if err != nil {
@@ -140,7 +157,7 @@ func UpdateUserHandler(c *gin.Context) {
 	targetUserID := c.Param("id")
 
 	var updateData dto.UpdateUserRequest
-	if err := c.ShouldBindJSON(&updateData); err != nil {
+	if err = c.ShouldBindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Invalid request body",
 			"error":   err.Error(),
@@ -184,12 +201,12 @@ func DeleteUserHandler(c *gin.Context) {
 func getClaimsFromContext(c *gin.Context) (jwt.MapClaims, error) {
 	userClaims, exists := c.Get("user")
 	if !exists {
-		return nil, fmt.Errorf("unauthorized")
+		return nil, errors.New("unauthorized")
 	}
 
 	claims, ok := userClaims.(jwt.MapClaims)
 	if !ok {
-		return nil, fmt.Errorf("invalid claims format")
+		return nil, errors.New("invalid claims format")
 	}
 
 	return claims, nil

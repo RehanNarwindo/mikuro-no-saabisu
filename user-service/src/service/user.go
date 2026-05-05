@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"errors"
+
 	"user-service/src/dto"
 	"user-service/src/repository"
 
@@ -18,7 +20,8 @@ func GetProfile(claims jwt.MapClaims) (dto.UserResponse, error) {
 		return dto.UserResponse{}, errors.New("invalid token: user_id not found")
 	}
 
-	user, err := repository.GetUserById(userID)
+	ctx := context.Background()
+	user, err := repository.GetUserById(ctx, userID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -40,7 +43,8 @@ func GetUserByID(claims jwt.MapClaims, targetUserID string) (dto.UserResponse, e
 		return dto.UserResponse{}, errors.New("permission denied: you can only access your own data")
 	}
 
-	user, err := repository.GetUserById(targetUserID)
+	ctx := context.Background()
+	user, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -54,7 +58,7 @@ func GetUserByID(claims jwt.MapClaims, targetUserID string) (dto.UserResponse, e
 	}, nil
 }
 
-func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUserHandlersRequest) (*dto.GetAllUsersResponse, error) {
+func GetAllUsers(claims jwt.MapClaims, req *dto.GetAllUserHandlersRequest) (*dto.GetAllUsersResponse, error) {
 	tokenRole, _ := claims["role"].(string)
 	if tokenRole != "admin" {
 		return nil, errors.New("permission denied: admin access required")
@@ -73,7 +77,9 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUserHandlersRequest) (*dto.
 		req.SortDir = "DESC"
 	}
 
+	ctx := context.Background()
 	users, total, err := repository.GetAllUserHandlersWithFilters(
+		ctx,
 		req.Search,
 		req.Role,
 		req.Limit,
@@ -91,13 +97,13 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUserHandlersRequest) (*dto.
 	}
 
 	var result []dto.UserResponse
-	for _, user := range users {
+	for i := range users {
 		result = append(result, dto.UserResponse{
-			ID:        user.ID,
-			Email:     user.Email,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-			Role:      user.Role,
+			ID:        users[i].ID,
+			Email:     users[i].Email,
+			FirstName: users[i].FirstName,
+			LastName:  users[i].LastName,
+			Role:      users[i].Role,
 		})
 	}
 
@@ -118,12 +124,13 @@ func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.Update
 		return dto.UserResponse{}, errors.New("permission denied: you can only update your own data")
 	}
 
-	existingUser, err := repository.GetUserById(targetUserID)
+	ctx := context.Background()
+	existingUser, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if updateData.Email != "" && updateData.Email != existingUser.Email {
 		updates["email"] = updateData.Email
 	}
@@ -144,11 +151,11 @@ func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.Update
 		}, nil
 	}
 
-	if err := repository.UpdateUserByID(targetUserID, updates); err != nil {
+	if err = repository.UpdateUserByID(ctx, targetUserID, updates); err != nil {
 		return dto.UserResponse{}, err
 	}
 
-	updatedUser, err := repository.GetUserById(targetUserID)
+	updatedUser, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -170,5 +177,6 @@ func DeleteUser(claims jwt.MapClaims, targetUserID string) error {
 		return errors.New("permission denied: you can only delete your own account")
 	}
 
-	return repository.DeleteUserByID(targetUserID)
+	ctx := context.Background()
+	return repository.DeleteUserByID(ctx, targetUserID)
 }

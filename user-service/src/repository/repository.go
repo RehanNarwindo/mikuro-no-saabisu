@@ -1,28 +1,22 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"user-service/src/config/database"
 	"user-service/src/model"
 )
 
-var allowedSortBy = map[string]bool{
-	"created_at": true, "email": true, "first_name": true,
-}
-
-var allowedSortDir = map[string]bool{
-	"ASC": true, "DESC": true,
-}
-
-func GetUserById(id string) (*model.User, error) {
+func GetUserById(ctx context.Context, id string) (*model.User, error) {
 	var user model.User
 
 	query := `SELECT id, email, first_name, last_name, role FROM users WHERE id = $1`
 
-	err := database.DB.QueryRow(query, id).Scan(
+	err := database.DB.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -40,12 +34,12 @@ func GetUserById(id string) (*model.User, error) {
 	return &user, nil
 }
 
-func GetUserByEmail(email string) (*model.User, error) {
+func GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	var user model.User
 
 	query := `SELECT id, email, first_name, last_name, role FROM users WHERE email = $1`
 
-	err := database.DB.QueryRow(query, email).Scan(
+	err := database.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.FirstName,
@@ -60,17 +54,60 @@ func GetUserByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortBy, sortDir string) ([]model.User, int, error) {
-	baseQuery := `FROM users WHERE 1=1`
-	args := []interface{}{}
-	argCounter := 1
+func GetAllUserHandlersWithFilters(ctx context.Context, search, role string, limit, offset int, sortBy, sortDir string) ([]model.User, int, error) {
+	sortBy, sortDir = normalizeSortParams(sortBy, sortDir)
+	limit, offset = normalizePaginationParams(limit, offset)
+
+	baseQuery, args := buildBaseQuery(search, role)
+
+	total, err := getTotalCount(ctx, baseQuery, args)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	users, err := fetchUsers(ctx, baseQuery, args, sortBy, sortDir, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+func normalizeSortParams(sortBy, sortDir string) (string, string) {
+	allowedSortBy := map[string]bool{
+		"id":         true,
+		"email":      true,
+		"first_name": true,
+		"last_name":  true,
+		"role":       true,
+		"created_at": true,
+	}
 
 	if !allowedSortBy[sortBy] {
 		sortBy = "created_at"
 	}
-	if !allowedSortDir[sortDir] {
+
+	if sortDir != "ASC" && sortDir != "DESC" {
 		sortDir = "DESC"
 	}
+
+	return sortBy, sortDir
+}
+
+func normalizePaginationParams(limit, offset int) (int, int) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
+}
+
+func buildBaseQuery(search, role string) (string, []any) {
+	baseQuery := "FROM users WHERE 1=1"
+	args := []any{}
+	argCounter := 1
 
 	if search != "" {
 		baseQuery += fmt.Sprintf(` AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)`,
@@ -82,45 +119,50 @@ func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortB
 	if role != "" {
 		baseQuery += fmt.Sprintf(` AND role = $%d`, argCounter)
 		args = append(args, role)
-		argCounter++
 	}
 
-	countQuery := `SELECT COUNT(*) ` + baseQuery
+	return baseQuery, args
+}
+
+func getTotalCount(ctx context.Context, baseQuery string, args []any) (int, error) {
+	countQuery := "SELECT COUNT(*) " + baseQuery
 	var total int
-	err := database.DB.QueryRow(countQuery, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, err
+	err := database.DB.QueryRowContext(ctx, countQuery, args...).Scan(&total)
+	return total, err
+}
+
+func fetchUsers(ctx context.Context, baseQuery string, baseArgs []any, sortBy, sortDir string, limit, offset int) ([]model.User, error) {
+	allowedSortBy := map[string]bool{
+		"created_at": true,
+		"email":      true,
+		"first_name": true,
+		"last_name":  true,
+		"id":         true,
+		"role":       true,
 	}
 
-	if sortBy == "" {
+	if !allowedSortBy[sortBy] {
 		sortBy = "created_at"
 	}
-	if sortDir == "" {
-		sortDir = "DESC"
-	}
+
+	sortDir = strings.ToUpper(sortDir)
 	if sortDir != "ASC" && sortDir != "DESC" {
 		sortDir = "DESC"
 	}
 
-	if limit <= 0 {
-		limit = 10
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
+	// #nosec G201 - SQL injection prevented by whitelist validation above
 	query := fmt.Sprintf(`
-		SELECT id, email, first_name, last_name, role 
-		%s 
-		ORDER BY %s %s 
-		LIMIT $%d OFFSET $%d
-	`, baseQuery, sortBy, sortDir, argCounter, argCounter+1)
+        SELECT id, email, first_name, last_name, role 
+        %s 
+        ORDER BY %s %s 
+        LIMIT $%d OFFSET $%d
+    `, baseQuery, sortBy, sortDir, len(baseArgs)+1, len(baseArgs)+2)
 
-	args = append(args, limit, offset)
+	args := append(baseArgs, limit, offset)
 
-	rows, err := database.DB.Query(query, args...)
+	rows, err := database.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -128,6 +170,10 @@ func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortB
 		}
 	}()
 
+	return scanUsers(rows)
+}
+
+func scanUsers(rows *sql.Rows) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
@@ -139,16 +185,15 @@ func GetAllUserHandlersWithFilters(search, role string, limit, offset int, sortB
 			&u.Role,
 		)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		users = append(users, u)
 	}
-
-	return users, total, nil
+	return users, nil
 }
 
-func GetAllUserHandlers() ([]model.User, error) {
-	rows, err := database.DB.Query(`SELECT id, email, first_name, last_name, role FROM users`)
+func GetAllUserHandlers(ctx context.Context) ([]model.User, error) {
+	rows, err := database.DB.QueryContext(ctx, `SELECT id, email, first_name, last_name, role FROM users`)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +203,6 @@ func GetAllUserHandlers() ([]model.User, error) {
 		}
 	}()
 
-	
 	var users []model.User
 
 	for rows.Next() {
@@ -181,7 +225,7 @@ func GetAllUserHandlers() ([]model.User, error) {
 	return users, nil
 }
 
-func UpdateUserByID(id string, updates map[string]interface{}) error {
+func UpdateUserByID(ctx context.Context, id string, updates map[string]any) error {
 	query := `UPDATE users SET 
 		email = COALESCE($1, email),
 		first_name = COALESCE($2, first_name),
@@ -189,7 +233,7 @@ func UpdateUserByID(id string, updates map[string]interface{}) error {
 		updated_at = NOW()
 	WHERE id = $4`
 
-	_, err := database.DB.Exec(query,
+	_, err := database.DB.ExecContext(ctx, query,
 		updates["email"],
 		updates["first_name"],
 		updates["last_name"],
@@ -199,10 +243,10 @@ func UpdateUserByID(id string, updates map[string]interface{}) error {
 	return err
 }
 
-func DeleteUserByID(id string) error {
+func DeleteUserByID(ctx context.Context, id string) error {
 	query := `DELETE FROM users WHERE id = $1`
 
-	result, err := database.DB.Exec(query, id)
+	result, err := database.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,6 @@ export class AuthRepository {
       user.password,
       user.firstName,
       user.lastName,
-      user.role || 'user',
     ];
     const result = await this.db.query(AuthQueries.create, values);
 

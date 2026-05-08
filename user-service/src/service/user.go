@@ -1,13 +1,14 @@
 package service
 
 import (
+	"context"
 	"errors"
-	"fmt"
+
 	"user-service/src/dto"
 	"user-service/src/repository"
+
 	"github.com/golang-jwt/jwt/v5"
 )
-
 
 func GetPublicMessage() string {
 	return "User service jalan"
@@ -19,7 +20,8 @@ func GetProfile(claims jwt.MapClaims) (dto.UserResponse, error) {
 		return dto.UserResponse{}, errors.New("invalid token: user_id not found")
 	}
 
-	user, err := repository.GetUserById(userID)
+	ctx := context.Background()
+	user, err := repository.GetUserById(ctx, userID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -27,30 +29,22 @@ func GetProfile(claims jwt.MapClaims) (dto.UserResponse, error) {
 	return dto.UserResponse{
 		ID:        user.ID,
 		Email:     user.Email,
-		Name: user.FirstName + " " + user.LastName,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
 		Role:      user.Role,
 	}, nil
-}
-
-
-func getFieldValue(data interface{}, fieldName string) interface{} {
-	if m, ok := data.(map[string]interface{}); ok {
-		if val, exists := m[fieldName]; exists {
-			return val
-		}
-	}
-	return nil
 }
 
 func GetUserByID(claims jwt.MapClaims, targetUserID string) (dto.UserResponse, error) {
 	tokenUserID, _ := claims["sub"].(string)
 	tokenRole, _ := claims["role"].(string)
 
-	if tokenRole != "admin" && tokenRole != "super_admin" && tokenUserID != targetUserID {
+	if tokenRole != "admin" && tokenUserID != targetUserID {
 		return dto.UserResponse{}, errors.New("permission denied: you can only access your own data")
 	}
 
-	user, err := repository.GetUserById(targetUserID)
+	ctx := context.Background()
+	user, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -58,17 +52,15 @@ func GetUserByID(claims jwt.MapClaims, targetUserID string) (dto.UserResponse, e
 	return dto.UserResponse{
 		ID:        user.ID,
 		Email:     user.Email,
-		Name: user.FirstName + " " + user.LastName,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
 		Role:      user.Role,
 	}, nil
 }
 
-
-
-
-func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUsersRequest) (*dto.GetAllUsersResponse, error) {
+func GetAllUsers(claims jwt.MapClaims, req *dto.GetAllUserHandlersRequest) (*dto.GetAllUsersResponse, error) {
 	tokenRole, _ := claims["role"].(string)
-	if tokenRole != "admin" && tokenRole != "super_admin" {
+	if tokenRole != "admin" {
 		return nil, errors.New("permission denied: admin access required")
 	}
 
@@ -85,7 +77,9 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUsersRequest) (*dto.GetAllU
 		req.SortDir = "DESC"
 	}
 
-	users, total, err := repository.GetAllUsersWithFilters(
+	ctx := context.Background()
+	users, total, err := repository.GetAllUserHandlersWithFilters(
+		ctx,
 		req.Search,
 		req.Role,
 		req.Limit,
@@ -97,18 +91,19 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUsersRequest) (*dto.GetAllU
 		return nil, err
 	}
 
-	totalPages := (total + req.Limit - 1) / req.Limit
-	if totalPages < 0 {
-		totalPages = 0
+	totalPages := 0
+	if req.Limit > 0 {
+		totalPages = (total + req.Limit - 1) / req.Limit
 	}
 
 	var result []dto.UserResponse
-	for _, user := range users {
+	for i := range users {
 		result = append(result, dto.UserResponse{
-			ID:    user.ID,
-			Email: user.Email,
-			Name:  user.FirstName + " " + user.LastName,
-			Role:  user.Role,
+			ID:        users[i].ID,
+			Email:     users[i].Email,
+			FirstName: users[i].FirstName,
+			LastName:  users[i].LastName,
+			Role:      users[i].Role,
 		})
 	}
 
@@ -121,21 +116,21 @@ func GetAllUsers(claims jwt.MapClaims, req dto.GetAllUsersRequest) (*dto.GetAllU
 	}, nil
 }
 
-
 func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.UpdateUserRequest) (dto.UserResponse, error) {
 	tokenUserID, _ := claims["sub"].(string)
 	tokenRole, _ := claims["role"].(string)
 
-	if tokenRole != "admin" && tokenRole != "super_admin" && tokenUserID != targetUserID {
+	if tokenRole != "admin" && tokenUserID != targetUserID {
 		return dto.UserResponse{}, errors.New("permission denied: you can only update your own data")
 	}
 
-	existingUser, err := repository.GetUserById(targetUserID)
+	ctx := context.Background()
+	existingUser, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if updateData.Email != "" && updateData.Email != existingUser.Email {
 		updates["email"] = updateData.Email
 	}
@@ -146,12 +141,21 @@ func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.Update
 		updates["last_name"] = updateData.LastName
 	}
 
-	err = repository.UpdateUserByID(targetUserID, updates)
-	if err != nil {
+	if len(updates) == 0 {
+		return dto.UserResponse{
+			ID:        existingUser.ID,
+			Email:     existingUser.Email,
+			FirstName: existingUser.FirstName,
+			LastName:  existingUser.LastName,
+			Role:      existingUser.Role,
+		}, nil
+	}
+
+	if err = repository.UpdateUserByID(ctx, targetUserID, updates); err != nil {
 		return dto.UserResponse{}, err
 	}
 
-	updatedUser, err := repository.GetUserById(targetUserID)
+	updatedUser, err := repository.GetUserById(ctx, targetUserID)
 	if err != nil {
 		return dto.UserResponse{}, err
 	}
@@ -159,7 +163,8 @@ func UpdateUser(claims jwt.MapClaims, targetUserID string, updateData dto.Update
 	return dto.UserResponse{
 		ID:        updatedUser.ID,
 		Email:     updatedUser.Email,
-		Name: 	   updatedUser.FirstName + " " + updatedUser.LastName,
+		FirstName: updatedUser.FirstName,
+		LastName:  updatedUser.LastName,
 		Role:      updatedUser.Role,
 	}, nil
 }
@@ -168,24 +173,10 @@ func DeleteUser(claims jwt.MapClaims, targetUserID string) error {
 	tokenUserID, _ := claims["sub"].(string)
 	tokenRole, _ := claims["role"].(string)
 
-	fmt.Printf("DeleteUser - Token UserID: %s, Role: %s, Target UserID: %s\n", 
-		tokenUserID, tokenRole, targetUserID)
-
-	if tokenRole != "admin" && tokenRole != "super_admin" && tokenUserID != targetUserID {
+	if tokenRole != "admin" && tokenUserID != targetUserID {
 		return errors.New("permission denied: you can only delete your own account")
 	}
 
-	if tokenUserID == targetUserID && tokenRole == "admin" {
-		fmt.Println("Warning: Admin is deleting their own account")
-	}
-
-	err := repository.DeleteUserByID(targetUserID)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("User with ID %s has been deleted by %s (role: %s)\n", 
-		targetUserID, tokenUserID, tokenRole)
-	
-	return nil
+	ctx := context.Background()
+	return repository.DeleteUserByID(ctx, targetUserID)
 }

@@ -21,7 +21,7 @@ vet:
 
 lint:
 	@echo "Running golangci-lint..."
-	golangci-lint run --config .golangci.yaml
+	golangci-lint run 
 	@echo "Linting complete"
 
 check: fmt vet lint 

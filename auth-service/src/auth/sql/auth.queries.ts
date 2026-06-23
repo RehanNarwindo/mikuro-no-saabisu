@@ -10,8 +10,8 @@ export const AuthQueries = {
     WHERE email = $1
   `,
   create: `
-    INSERT INTO users (id, email, password, first_name, last_name, role)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO users (id, email, password, first_name, last_name)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING id, email, first_name, last_name, role, created_at
   `,
 

@@ -23,7 +23,6 @@ export class AuthService {
 
     try {
       const hashedPassword = await hashPass(registerDto.password);
-
       const user = await this.authRepository.createUser({
         email: registerDto.email,
         password: hashedPassword,
